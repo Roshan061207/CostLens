@@ -2,12 +2,14 @@
 Roles: member = sees only files they uploaded | lead = sees all files of their team, sets budgets | admin = sees every team.
 Everyone can upload to their own team. Setup (no open sign-up):  python secure.py add NAME TEAM PASSWORD [member|lead|admin]  |  demo TEAM  |  seed
 Set COSTLENS_SECRET to a long random string so sessions survive restarts. Serve over HTTPS in any real deployment."""
-import os, re, sys, hmac, hashlib, time, base64, json, secrets, random, threading
+import os, re, sys, hmac, hashlib, time, base64, json, secrets, random, threading, logging
+import pyexasol
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from db import connect
 
 R, SECRET, _bad, ROLES = APIRouter(), (os.getenv("COSTLENS_SECRET") or secrets.token_hex(32)).encode(), {}, ("member", "lead", "admin")
+logger = logging.getLogger(__name__)
 LOCK, _t, _init = threading.Lock(), threading.local(), []
 DEMO_PASSWORD = "CostLensDemo2026!"
 DEMO_USERS = [
@@ -57,7 +59,11 @@ class Login(BaseModel): name: str; team: str; password: str
 def login(b: Login):
     k = (b.name, b.team)
     if _bad.get(k, (0, 0))[0] >= 5 and time.time() < _bad[k][1]: raise HTTPException(429, "Too many attempts. Wait 5 minutes.")
-    r = C().execute("SELECT SALT, PW, ROLE FROM COSTLENS.USERS WHERE NAME={n} AND TEAM={t}", {"n": b.name, "t": b.team}).fetchone()
+    try:
+        r = C().execute("SELECT SALT, PW, ROLE FROM COSTLENS.USERS WHERE NAME={n} AND TEAM={t}", {"n": b.name, "t": b.team}).fetchone()
+    except pyexasol.ExaError as exc:
+        logger.error("CostLens sign-in could not query Exasol (%s)", type(exc).__name__)
+        raise HTTPException(503, "CostLens cannot access its Exasol database. Check the Render database connection settings and initialize the demo users.") from exc
     if not r or not hmac.compare_digest(pw_hash(b.password, r[0]), r[1]):
         _bad[k] = (_bad.get(k, (0, 0))[0] + 1, time.time() + 300); raise HTTPException(401, "Wrong name, team or password")
     _bad.pop(k, None); return {"token": mint(b.name, b.team, r[2]), "name": b.name, "team": b.team, "role": r[2]}
