@@ -107,7 +107,7 @@ There is no Docker deployment configuration in this repository yet.
 
 - Pitch deck: [CostLens Exasol Hackathon](./CostLens_Exasol_Hackathon.pptx) (PowerPoint).
 - Demo video: not included yet. Record a walkthrough of no more than 3 minutes and link it here before final submission.
-- Public source repository: publish this project to the intended GitHub repository before claiming this criterion is complete.
+- Public source repository: [Roshan061207/CostLens](https://github.com/Roshan061207/CostLens).
 - Requirement-by-requirement status: [Hackathon submission checklist](./HACKATHON_SUBMISSION.md).
 - Suggested short walkthrough: [Demo script](./DEMO_SCRIPT.md).
 - The OCR engine, Chart.js and SheetJS are bundled in `static/vendor/` (about 21 MB), so the live feed and charts work with no internet.
