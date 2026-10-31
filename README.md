@@ -94,6 +94,19 @@ python smoke_test.py
 
 The app is currently a Python/FastAPI application intended to run beside a reachable Exasol instance. For a local or internal demo, install requirements, configure the environment variables above, initialize the database, and run the Uvicorn command.
 
+### Deploy a hackathon demo on Render
+
+The repository includes a Render Blueprint in [`render.yaml`](./render.yaml) and pins the runtime to Python 3.12 in [`.python-version`](./.python-version).
+
+1. Make sure you have an Exasol instance reachable from Render. A database on your laptop or private network will not normally be reachable from Render. Use a demo-only Exasol instance with synthetic data.
+2. Push the latest project files, including `render.yaml` and `.python-version`, to the `main` branch of the public GitHub repository.
+3. Sign in to Render, choose **New → Blueprint**, connect `Roshan061207/CostLens`, and select the branch containing `render.yaml`.
+4. During Blueprint setup, provide `EXA_DSN`, `EXA_USER`, and `EXA_PASSWORD` as secret environment values. Render generates `COSTLENS_SECRET`; do not put credentials in the YAML or GitHub.
+5. Before deploying, initialize the Exasol database once from a machine that can connect to it. In PowerShell, activate the project virtual environment, set the same `EXA_DSN`, `EXA_USER`, and `EXA_PASSWORD` values, then run `python setup_data.py`, `python secure.py seed`, and `python secure.py demo-users`. Do not run these commands on every app restart.
+6. Wait for the Render deploy to finish, open the service's `onrender.com` URL, and verify `/`, `/org`, and `/platform`. Use the Render logs if the service fails to start or cannot reach Exasol.
+
+The free web-service plan may sleep when idle, so the first request can take time. A public demo account is included in the app; deploy only with synthetic demo data and never use this setup for confidential or production data. The current Exasol connector disables certificate verification, so this configuration is a hackathon demo path, not a production security configuration. See the production notes below before exposing real data.
+
 Before any shared or production deployment:
 - Put the application behind HTTPS and a production-grade ASGI server/reverse proxy.
 - Store `COSTLENS_SECRET`, Exasol credentials, and any LLM API key in a secret manager; never in source control.
