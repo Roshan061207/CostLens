@@ -47,7 +47,10 @@ def who(authorization: str = Header("")):
         p, s = authorization.replace("Bearer ", "").split(".")
         assert hmac.compare_digest(s, sign(p)); d = json.loads(base64.urlsafe_b64decode(p)); assert d["x"] > time.time(); return d
     except Exception: raise HTTPException(401, "Sign in again")
-def note(me, a): C().execute("INSERT INTO COSTLENS.ACCESS_LOG VALUES (CURRENT_TIMESTAMP, {n}, {t}, {a})", {"n": me["u"], "t": me["t"], "a": a[:60]})
+def preview_enabled(): return os.getenv("COSTLENS_DEMO_PREVIEW", "").lower() == "true"
+def is_preview(me): return bool(me.get("preview"))
+def note(me, a):
+    if not is_preview(me): C().execute("INSERT INTO COSTLENS.ACCESS_LOG VALUES (CURRENT_TIMESTAMP, {n}, {t}, {a})", {"n": me["u"], "t": me["t"], "a": a[:60]})
 def scope(me, by):
     """Who may see which rows: admin all, lead their team, member only what they uploaded."""
     if me["r"] == "admin": return "1=1", {}
@@ -59,6 +62,13 @@ class Login(BaseModel): name: str; team: str; password: str
 def login(b: Login):
     k = (b.name, b.team)
     if _bad.get(k, (0, 0))[0] >= 5 and time.time() < _bad[k][1]: raise HTTPException(429, "Too many attempts. Wait 5 minutes.")
+    if preview_enabled():
+        if (b.name, b.team) not in DEMO_USERS or not hmac.compare_digest(b.password, DEMO_PASSWORD):
+            _bad[k] = (_bad.get(k, (0, 0))[0] + 1, time.time() + 300)
+            raise HTTPException(401, "Wrong name, team or password")
+        _bad.pop(k, None)
+        p = base64.urlsafe_b64encode(json.dumps({"u": b.name, "t": b.team, "r": "lead", "preview": True, "x": time.time() + 8 * 3600}).encode()).decode()
+        return {"token": p + "." + sign(p), "name": b.name, "team": b.team, "role": "lead", "preview": True}
     try:
         r = C().execute("SELECT SALT, PW, ROLE FROM COSTLENS.USERS WHERE NAME={n} AND TEAM={t}", {"n": b.name, "t": b.team}).fetchone()
     except pyexasol.ExaError as exc:
@@ -67,6 +77,35 @@ def login(b: Login):
     if not r or not hmac.compare_digest(pw_hash(b.password, r[0]), r[1]):
         _bad[k] = (_bad.get(k, (0, 0))[0] + 1, time.time() + 300); raise HTTPException(401, "Wrong name, team or password")
     _bad.pop(k, None); return {"token": mint(b.name, b.team, r[2]), "name": b.name, "team": b.team, "role": r[2]}
+
+PREVIEW_MONTHS = [
+    ("2026-04", 42100), ("2026-05", 43800), ("2026-06", 45200),
+    ("2026-07", 46700), ("2026-08", 47900), ("2026-09", 49300),
+    ("2026-10", 50800),
+]
+PREVIEW_CATEGORIES = {
+    "Salary": (22000, 22000),
+    "Software": (9800, 8000),
+    "Travel": (4600, 4000),
+    "Food": (3500, 3000),
+    "Benefits": (2800, 3000),
+    "Events": (900, 1200),
+}
+
+def preview_summary(team):
+    scale = {"Finance": 1.0, "Marketing": .82, "Ops": .91, "Product": .76}[team]
+    cats = [[k, round(v[0] * scale, 2)] for k, v in PREVIEW_CATEGORIES.items()]
+    months = [[m, round(v * scale, 2)] for m, v in PREVIEW_MONTHS]
+    catmonths = [[k, m, round((v[0] + (i - 2) * (v[1] - v[0]) / 5) * scale, 2)]
+                 for k, v in PREVIEW_CATEGORIES.items() for i, (m, _) in enumerate(PREVIEW_MONTHS)]
+    return {
+        "cats": sorted(cats, key=lambda x: x[1], reverse=True),
+        "months": months,
+        "thismonth": [[k, round(v[1] * scale, 2)] for k, v in PREVIEW_CATEGORIES.items()],
+        "budgets": [[k, round(v[1] * scale * 1.12, 2)] for k, v in PREVIEW_CATEGORIES.items()],
+        "teams": None,
+        "catmonths": catmonths,
+    }
 
 def digest(prev, team, dt, cat, d, amt, by): return hashlib.sha256("|".join([prev, team, dt, cat, d, f"{float(amt):.2f}", by]).encode()).hexdigest()
 def put(c, team, user, rows, fname="Manual entry"):
@@ -88,6 +127,7 @@ class Row(BaseModel): date: str; category: str; description: str = ""; amount: f
 class Rows(BaseModel): rows: list[Row]; file_name: str = "Manual entry"
 @R.post("/api/ledger")
 def add(b: Rows, me: dict = Depends(who)):
+    if is_preview(me): raise HTTPException(403, "The synthetic Render preview is read-only.")
     if not 0 < len(b.rows) <= 500: raise HTTPException(400, "Send 1 to 500 rows")
     with LOCK: put(C(), me["t"], me["u"], [x.dict() for x in b.rows], b.file_name)  # lock keeps the hash chain in order
     note(me, f"add {len(b.rows)} rows"); return {"added": len(b.rows)}
@@ -95,6 +135,9 @@ def add(b: Rows, me: dict = Depends(who)):
 def Q(sql, p): return [[str(r[0]), float(r[1])] for r in C().execute(sql, p).fetchall()]
 @R.get("/api/ledger/summary")
 def summary(me: dict = Depends(who)):
+    if is_preview(me):
+        note(me, "view preview summary")
+        return preview_summary(me["t"])
     w, p = scope(me, "ENTERED_BY"); note(me, "view summary"); L = f"FROM COSTLENS.LEDGER WHERE {w}"
     d = {"cats": Q(f"SELECT CAT, SUM(AMT) {L} GROUP BY CAT ORDER BY 2 DESC", p), "months": Q(f"SELECT SUBSTR(DT,1,7), SUM(AMT) {L} GROUP BY 1 ORDER BY 1", p),
          "thismonth": Q(f"SELECT CAT, SUM(AMT) {L} AND SUBSTR(DT,1,7)=TO_CHAR(CURRENT_DATE,'YYYY-MM') GROUP BY CAT", p), "budgets": [], "teams": None}
@@ -106,12 +149,14 @@ def summary(me: dict = Depends(who)):
 
 @R.get("/api/files")
 def files(me: dict = Depends(who)):
+    if is_preview(me): return {"files": []}
     w, p = scope(me, "UPLOADED_BY"); note(me, "list files")
     rows = C().execute(f"SELECT ID, TEAM, NAME, UPLOADED_BY, TO_CHAR(TS,'YYYY-MM-DD HH24:MI'), ROWS_N, TOTAL FROM COSTLENS.UPLOADS WHERE {w} ORDER BY ID DESC LIMIT 50", p).fetchall()
     return {"files": [{"id": int(a), "team": b, "name": n, "by": u, "ts": t, "rows": int(r), "total": float(s)} for a, b, n, u, t, r, s in rows]}
 
 @R.get("/api/files/{fid}")
 def one_file(fid: int, me: dict = Depends(who)):
+    if is_preview(me): raise HTTPException(404, "File not found")
     w, p = scope(me, "UPLOADED_BY"); f = C().execute(f"SELECT NAME FROM COSTLENS.UPLOADS WHERE ID={{i}} AND {w}", {**p, "i": fid}).fetchone()
     if not f: raise HTTPException(404, "File not found")  # same answer whether it does not exist or you may not see it
     note(me, f"open file {fid}")
@@ -127,6 +172,7 @@ def chain(tm):
 @R.get("/api/ledger/verify")
 def verify(me: dict = Depends(who)):
     if me["r"] == "member": raise HTTPException(403, "Leads and admins only")
+    if is_preview(me): raise HTTPException(409, "Ledger verification is unavailable for generated preview data.")
     note(me, "verify ledger"); teams = [r[0] for r in C().execute("SELECT DISTINCT TEAM FROM COSTLENS.LEDGER").fetchall()] if me["r"] == "admin" else [me["t"]]
     res = [chain(t) for t in teams]; bad = [r for r in res if not r["ok"]]
     return bad[0] if bad else {"ok": True, "rows": sum(r["rows"] for r in res)}
@@ -135,6 +181,7 @@ class Bud(BaseModel): category: str; monthly: float; team: str = ""
 @R.post("/api/budget")
 def budget(b: Bud, me: dict = Depends(who)):
     if me["r"] == "member": raise HTTPException(403, "Leads and admins only")
+    if is_preview(me): raise HTTPException(403, "The synthetic Render preview is read-only.")
     p = {"t": b.team if me["r"] == "admin" and b.team else me["t"], "k": b.category.strip().title()[:40], "m": round(b.monthly, 2)}
     C().execute("DELETE FROM COSTLENS.BUDGETS WHERE TEAM={t} AND CAT={k}", p); C().execute("INSERT INTO COSTLENS.BUDGETS VALUES ({t},{k},{m})", p); note(me, "set budget " + p["k"]); return {"ok": True}
 
@@ -158,6 +205,14 @@ def log(b: Ev, me: dict = Depends(who)): note(me, "client: " + b.action); return
 
 @R.get("/api/ops")
 def ops(me: dict = Depends(who)):
+    if is_preview(me):
+        return {
+            "pipes": [{"p": "finance_refresh", "fails": 4, "silent": 2, "min": 126},
+                      {"p": "campaign_rollup", "fails": 3, "silent": 1, "min": 88}],
+            "dash": [{"d": "Executive KPIs", "owner": "Finance", "stale": 3, "mismatch": 2.4},
+                     {"d": "Monthly close", "owner": "Finance", "stale": 1, "mismatch": .5}],
+            "reqs": [{"t": "Cost center breakdown", "team": me["t"], "age": 5}],
+        }
     c = C(); note(me, "view ops")
     f = c.execute("SELECT PIPELINE, COUNT(*), SUM(CASE WHEN ALERTED=0 THEN 1 ELSE 0 END), SUM(MINUTES) FROM COSTLENS.PIPELINE_RUNS WHERE STATUS='FAILED' GROUP BY PIPELINE ORDER BY 3 DESC, 2 DESC").fetchall()
     d = c.execute("SELECT DASHBOARD, OWNER, DAYS_BETWEEN(CURRENT_DATE, LAST_REFRESH), MISMATCH_PCT FROM COSTLENS.DASHBOARD_STATE ORDER BY 3 DESC").fetchall()
