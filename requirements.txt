@@ -1,0 +1,8 @@
+streamlit>=1.36
+pyexasol[pandas]>=0.26
+plotly>=5.20
+pandas
+numpy
+anthropic
+fastapi
+uvicorn

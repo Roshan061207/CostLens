@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="CostLens explains data-platform cost growth, finds query waste, and helps teams validate savings.">
+<title>CostLens - See what drives your data costs</title>
+<style>
+:root{color-scheme:light dark;--bg:#0A1822;--panel:#122632;--ink:#E9EFF4;--mute:#A9BCC9;--line:#29414F;--teal:#2DD4BF;--amber:#FB923C;--green:#4ADE80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:inherit}.wrap{max-width:1080px;margin:auto;padding:1.2rem}
+header{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.brand{font-size:1.2rem;font-weight:800;letter-spacing:-.03em}.brand span{color:var(--teal)}
+.nav{display:flex;gap:.7rem;align-items:center}.nav a,.btn{border:1px solid var(--line);border-radius:8px;padding:.65rem 1rem;text-decoration:none}
+.btn{background:var(--teal);color:#06241F;border-color:var(--teal);font-weight:700;display:inline-block}
+.hero{padding:5.5rem 0 4rem;background:radial-gradient(850px 420px at 85% 0%,rgba(15,118,110,.4),transparent 65%)}
+.eyebrow{color:var(--teal);font-weight:700;text-transform:uppercase;letter-spacing:.12em;font-size:.8rem}
+h1,h2,h3{line-height:1.15;letter-spacing:-.035em}h1{font-size:clamp(2.5rem,7vw,5rem);max-width:800px;margin:.7rem 0 1rem}
+.lead{max-width:720px;color:var(--mute);font-size:1.15rem}.actions{display:flex;gap:.8rem;flex-wrap:wrap;margin:1.5rem 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;margin:2.5rem 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.2rem}
+.card h3{margin:.2rem 0 .55rem}.card p,.note{color:var(--mute);margin:.3rem 0}
+.formula{font-size:clamp(1.2rem,4vw,2rem);font-weight:700;color:var(--teal);overflow-wrap:anywhere}
+.source{border-left:3px solid var(--amber);padding:.8rem 1rem;background:rgba(251,146,60,.08);color:var(--mute)}
+footer{border-top:1px solid var(--line);padding:1.2rem 0;color:var(--mute);font-size:.88rem}
+@media(max-width:520px){.hero{padding:3.5rem 0 2rem}.nav a{padding:.5rem}.wrap{padding:.9rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><a class="brand" href="/" aria-label="CostLens home">Cost<span>Lens</span></a><nav class="nav" aria-label="Main navigation"><a href="/org">Sign in</a></nav></header>
+<section class="hero">
+<div class="eyebrow">Data-platform cost clarity</div>
+<h1>Know what is driving your data costs.</h1>
+<p class="lead">CostLens turns query history into an understandable cost story: compare usage with spend, find expensive query patterns, see which teams and dashboards drive cost, and measure a proposed fix.</p>
+<div class="actions"><a class="btn" href="/org">Sign in to CostLens</a><a href="/platform">Explore the platform analysis</a></div>
+<p class="note">Start at sign-in to see the department-scoped organisation dashboard and platform analysis.</p>
+</section>
+<section aria-labelledby="how-title">
+<div class="eyebrow">How it works</div><h2 id="how-title">From query history to a clearer next step</h2>
+<div class="grid">
+<article class="card"><h3>1. Compare growth</h3><p>Compare a baseline month with a selected month. See actual query counts, active users, modelled cost, the percentage increase, and how the change splits across users, queries per user, and cost per query.</p></article>
+<article class="card"><h3>2. Find the drivers</h3><p>Review repeated heavy queries, wide scans, peak-hour usage, costs by team and dashboard, and a forecast based on the available history.</p></article>
+<article class="card"><h3>3. Check the opportunity</h3><p>Estimate possible savings, inspect the suggested query change, and measure before-and-after performance on the connected Exasol instance.</p></article>
+<article class="card"><h3>4. Review organisational spend</h3><p>Teams can review budgets and trends, upload a file, enter a row, or capture a selected on-screen data area for local OCR review.</p></article>
+</div>
+<div class="source"><strong>Know what the numbers mean.</strong> In this sample project, query history and departmental spend are synthetic demonstration data. Modelled cost uses (runtime seconds + scanned MB ÷ 100) × the selected rate card; it is an estimate, not an Exasol invoice. Live screen OCR runs in your browser and does not save anything until you review and submit rows.</div>
+<div class="actions"><a class="btn" href="/org">Continue to department sign-in</a></div>
+</section>
+<footer>CostLens demonstration · Sample data is synthetic · Review all estimates before making operational or financial decisions.</footer>
+</div>
+</body>
+</html>

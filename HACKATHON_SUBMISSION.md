@@ -1,0 +1,21 @@
+# Exasol Hackathon Submission Checklist
+
+| Requirement | Status | Evidence / remaining action |
+|---|---|---|
+| Clear problem statement: who has the problem and why it matters | Ready | README explains the impact on data-platform owners, analytics engineers, and finance teams. |
+| Public code repository | Pending | This workspace has no Git repository or configured remote. Publish it to the intended public GitHub repository before marking this complete. |
+| Pitch deck in PDF or PPT format | Ready | [CostLens_Exasol_Hackathon.pptx](./CostLens_Exasol_Hackathon.pptx) |
+| Demo video, maximum 3 minutes | Pending | No video file or public video URL is included. Record a walkthrough under three minutes and add its link to the README. A suggested narration and timing are in [DEMO_SCRIPT.md](./DEMO_SCRIPT.md). |
+| README with overview, setup, and usage | Ready | README includes the project problem, feature overview, Windows setup, demo initialization, usage URLs, and tests. |
+| Deployment instructions and run guide | Partial | README documents local setup, initialization, and Uvicorn startup plus production considerations. There is no Docker or hosted-platform deployment configuration yet. |
+| Apache 2.0 or MIT license | Ready | [LICENSE](./LICENSE) is MIT. |
+
+## Important demo disclosure
+
+The included query history, department ledger data, operations-health examples, and live-feed rows are synthetic. Cost units are modeled estimates, not provider invoices. Keep this disclosure in the pitch and demo.
+
+## Before submission
+
+1. Provide the destination GitHub repository and publish the source.
+2. Record and upload the short demo video; add its public link to README.
+3. Confirm the GitHub repository is public and the deck, license, setup instructions, and synthetic-data disclosure are visible.
